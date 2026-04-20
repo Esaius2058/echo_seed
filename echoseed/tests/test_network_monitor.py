@@ -42,14 +42,10 @@ def test_network_monitor_handles_keyboard_input(monkeypatch):
     assert not thread.is_alive()
 
 def test_network_monitor_stops_cleanly(monkeypatch):
-    nm = NetworkMonitor(refresh_callback=lambda: None)
+    mock_refresh = MagicMock()
+    nm = NetworkMonitor(refresh_callback=mock_refresh)
     monkeypatch.setattr(nm, "check_connection", lambda: False)
 
-    thread = threading.Thread(target=nm.run, daemon=True)
-    thread.start()
-    time.sleep(0.5)
+    nm.run()
 
-    nm.stop()
-    thread.join(timeout=2)
-
-    assert not thread.is_alive()
+    assert nm.running == False

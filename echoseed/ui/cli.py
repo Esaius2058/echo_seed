@@ -31,6 +31,7 @@ class PlaylistCLI:
                 choice = int(input("\nEnter the number of your choice: ").strip())
                 if 1 <= choice <= len(self.mood_labels):
                     self.selected_mood_label = values[choice - 1]
+                    print(f"Selected {self.selected_mood_label}.")
                     return self.selected_mood_label
                 else:
                     print(f"Please enter a number between 1 and {len(self.mood_labels)}.")
@@ -41,5 +42,5 @@ if __name__ == "__main__":
     auth = SpotifyAuthService()
     spotify_client = auth.get_spotify_client()
     cli = PlaylistCLI(spotify_client)
-    selected_mood = cli.display_menu()
-    print(f"Selected {selected_mood}. This is the PlaylistCLI class and its working correctly!!")
+    cli.display_menu()
+

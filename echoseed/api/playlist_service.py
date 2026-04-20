@@ -1,11 +1,11 @@
 import logging
 import time
 import random
+import numpy as np
 from typing import List
 from spotipy import Spotify
 from spotipy.exceptions import SpotifyException
 from echoseed.api.auth import SpotifyAuthService
-
 from echoseed.model.track import Track
 from echoseed.model.playlist import Playlist
 
@@ -126,7 +126,7 @@ class SpotifyPlaylistService:
 
         print(f"Fetched {len(track_uris)} tracks from playlist.")
 
-        random.shuffle(track_uris)
+        np.random.shuffle(track_uris)
 
         self.spotify.playlist_replace_items(playlist_id, [])
         logger.info("Cleared %s", playlist_name)
@@ -144,4 +144,4 @@ if __name__ == "__main__":
     auth_service.authenticate()
     sp_client =  auth_service.get_spotify_client()
     playlist_service = SpotifyPlaylistService(sp_client)
-    playlist_service.randomize_playlist("Slow Drift")
+    playlist_service.randomize_playlist("rock")
