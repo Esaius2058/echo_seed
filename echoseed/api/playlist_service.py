@@ -85,7 +85,10 @@ class SpotifyPlaylistService:
                     track = Track(
                         id=track_info["id"],
                         name=track_info["name"],
-                        artist=track_info["artists"][0]["name"]
+                        artist=track_info["artists"][0]["name"],
+                        album=track_info["album"]["name"],
+                        preview_url=track_info["preview_url"],
+                        duration_ms=track_info["duration_ms"]
                     )
                     tracks.append(track)
 

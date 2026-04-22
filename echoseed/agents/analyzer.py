@@ -6,29 +6,25 @@ from echoseed.tools.librosa_tools import extract_local_features
 from echoseed.api.auth import SpotifyAuthService
 from echoseed.api.playlist_service import SpotifyPlaylistService
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("audio_analyzer")
 
 def analyzer_node(state: EchoSeedState):
-    logger.info("[Analyzer] Starting audio analysis for %d tracks", len(state["tracks"]))
+    logger.info("Starting audio analysis for %d tracks", len(state["tracks"]))
     hf = HFClient()
     features_dict = {}
-    sp = SpotifyAuthService()
-    sp_client = sp.get_spotify_client()
-    playlist_service = SpotifyPlaylistService(sp_client)
-
 
     for track_id in state["tracks"]:
-        logger.info(f"[Analyzer] Extracting features for: {track_id}")
+        logger.info(f"Extracting features for: {track_id}")
 
-
-        preview_url = "YOUR_FETCHED_PREVIEW_URL"
+        preview_map = state.get("preview_urls", {})
+        preview_url = preview_map.get(track_id)
 
         if not preview_url:
-            logger.warning(f"[Analyzer] No preview URL for {track_id}. Skipping.")
+            logger.warning(f"No preview URL for {track_id}. Skipping.")
             continue
 
         try:
-            audio_bytes = download_and_resample(preview_url)
+            audio_bytes = download_and_resample(preview_url, target_str=24000)
             local_feats = extract_local_features(audio_bytes)
 
             # HuggingFace Calls
@@ -37,20 +33,23 @@ def analyzer_node(state: EchoSeedState):
             # Construct the final vector
             feature_vec: FeatureVector = {
                 "track_id": track_id,
-                "bpm": 120.0,  # Replace with actual HF tempo call
-                "key": "C major",  # Replace with actual HF key call
+                "bpm": local_feats["bpm"],
+                "key": "Unknown",
+                # Key extraction requires a chromagram matrix analysis, best left out unless strictly required for DJ mixing
                 "energy": local_feats["energy"],
-                "valence": 5.0,  # Replace with actual HF emo call
-                "arousal": 5.0,  # Replace with actual HF emo call
+                "valence": emotion_data["valence"],
+                "arousal": emotion_data["arousal"],
                 "brightness": local_feats["brightness"],
                 "danceability": local_feats["danceability"],
-                "mood_tags": ["neutral"],  # Replace with actual HF emo call
+                "mood_tags": emotion_data["mood_tags"],
                 "embedding": embedding
             }
+
             features_dict[track_id] = feature_vec
+            logger.info(f"Successfully generated feature vector for {track_id}")
 
         except Exception as e:
-            logger.error(f"[Analyzer] Failed to process {track_id}: {e}")
+            logger.error(f"Failed to process {track_id}: {e}")
             continue
 
     # Return the dictionary to update the graph state

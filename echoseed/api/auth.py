@@ -94,6 +94,7 @@ class SpotifyAuthService:
         logger.info("[SpotifyAuthService] Access token refreshed.")
 
     def get_spotify_client(self) -> Spotify:
+        print("CLIENT ID:", CLIENT_ID)
         return self.spotify
 
     def get_access_token(self):
