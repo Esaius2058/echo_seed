@@ -31,3 +31,13 @@ Thumbs.db
 
 # Test cache
 .pytest_cache/
+
+.cache
+
+cluster_mood_map.json
+
+inertias.png
+
+mood_cache.json
+
+tokens.json.enc
