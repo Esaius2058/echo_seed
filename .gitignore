@@ -9,6 +9,9 @@ __pycache__/
 .venv/
 venv/
 
+echoseed/data
+echoseed/model
+echoseed/ai
 # VS Code / JetBrains
 .vscode/
 .idea/
