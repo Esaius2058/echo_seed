@@ -1,5 +1,6 @@
 import os
 import io
+import gc
 import torch
 import librosa
 import logging
@@ -7,42 +8,53 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from transformers import AutoModel, Wav2Vec2FeatureExtractor
 from dotenv import load_dotenv
 
-# The worker version of main.py
-# Load environment variables
+# Optimization: Limit threads to save memory on the m7i
+torch.set_num_threads(1)
+
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("echoseed.worker")
 
-app = FastAPI(title="EchoSeed AI Inference API")
+app = FastAPI(title="EchoSeed AI Worker")
 
-# Define absolute paths for standalone models
+# Absolute paths for standalone models
 MODELS_BASE = os.path.expanduser("~/models")
 MERT_PATH = os.path.join(MODELS_BASE, "mert")
 
-# Load models into RAM at startup
-logger.info("[EchoSeed] Loading AI Models into Memory...")
+logger.info("[EchoSeed] Loading AI Models...")
 try:
-    mert_model = AutoModel.from_pretrained("m-a-p/MERT-v1-95M", cache_dir=MERT_PATH, trust_remote_code=True)
+    mert_model = AutoModel.from_pretrained(
+        "m-a-p/MERT-v1-95M", 
+        cache_dir=MERT_PATH, 
+        trust_remote_code=True,
+        return_dict=True
+    )
     mert_ext = Wav2Vec2FeatureExtractor.from_pretrained("m-a-p/MERT-v1-95M", cache_dir=MERT_PATH)
     logger.info("[EchoSeed] Models Loaded Successfully")
 except Exception as e:
-    logger.error(f"[EchoSeed] Model Loading Failed: {e}")
+    logger.error(f"Model Loading Failed: {e}")
 
 @app.post("/analyze")
 async def analyze(file: UploadFile = File(...)):
     try:
+        # 1. Read bytes and immediately load into librosa
         audio_bytes = await file.read()
-        
-        # 1. Librosa Processing
         y, sr = librosa.load(io.BytesIO(audio_bytes), sr=24000)
+        del audio_bytes 
+        
+        # 2. Tempo Logic
         tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
         bpm = float(tempo[0]) if hasattr(tempo, "__len__") else float(tempo)
         
-        # 2. MERT Embeddings
-        inputs = mert_ext(y, sampling_rate=sr, return_tensors="pt")
+        # 3. MERT Inference
         with torch.no_grad():
+            inputs = mert_ext(y, sampling_rate=sr, return_tensors="pt")
             outputs = mert_model(**inputs)
-        embedding = outputs.last_hidden_state.mean(dim=1).squeeze().tolist()
+            embedding = outputs.last_hidden_state.mean(dim=1).squeeze().tolist()
+        
+        # 4. Explicit Cleanup
+        del y, inputs, outputs
+        gc.collect() 
         
         return {
             "status": "success",
@@ -55,5 +67,4 @@ async def analyze(file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    # Accessible via Private IP within the VPC
     uvicorn.run(app, host="0.0.0.0", port=8000)
