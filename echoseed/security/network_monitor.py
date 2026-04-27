@@ -15,17 +15,17 @@ class NetworkMonitor:
         self.check_interval = check_interval
         self.refresh_callback = refresh_callback
         self.last_status = None
-        self.logger = logging.getLogger("echoseed.network_monitor")
+        self.logger = logging.getLogger("NetworkMonitor")
         self.running = False
 
     def check_connection(self) -> bool:
-        self.logger.info(f"[NetworkMonitor] pinging {self.test_url} to check connection")
+        self.logger.info(f"pinging {self.test_url} to check connection")
         try:
             response = requests.get(self.test_url, timeout=5)
-            self.logger.info(f"[NetworkMonitor] ping successful")
+            self.logger.info(f"ping successful")
             return response.status_code == 200
         except requests.RequestException as e:
-            self.logger.info(f"[NetworkMonitor] Failed to ping {self.test_url}")
+            self.logger.info(f"Failed to ping {self.test_url}")
             return False
 
     def log_status(self):
@@ -39,13 +39,13 @@ class NetworkMonitor:
 
         if is_online != self.last_status:
             if is_online == True & self.refresh_callback:
-                self.logger.info("[NetworkMonitor] Network restored. Triggering token refresh...")
+                self.logger.info("Network restored. Triggering token refresh...")
                 self.refresh_callback()
             self.last_status = is_online
 
     def run(self):
-        self.logger.info("[NetworkMonitor] Starting network monitoring...")
-        self.logger.info("[NetworkMonitor] Ctrl+C to stop")
+        self.logger.info("Starting network monitoring...")
+        self.logger.info("Ctrl+C to stop")
         self.running = True
         try:
             while self.running:
@@ -56,10 +56,10 @@ class NetworkMonitor:
                 time.sleep(self.check_interval)
                 break
         except KeyboardInterrupt:
-            self.logger.info("[NetworkMonitor] Stopping network monitoring (Ctrl+C detected)!")
+            self.logger.info("Stopping network monitoring (Ctrl+C detected)!")
         finally:
             self.running = False
-            self.logger.info("[NetworkMonitor] Network monitor stopped.")
+            self.logger.info("Network monitor stopped.")
 
     def stop(self):
         self.running = False

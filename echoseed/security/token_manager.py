@@ -9,7 +9,7 @@ class TokenManager:
     def __init__(self, encryption_key: bytes):
         base_dir = Path(__file__).resolve().parents[2]
         self.token_file_path = base_dir / "tokens.json.enc"
-        self.logger = logging.getLogger("echoseed.token_manager")
+        self.logger = logging.getLogger("TokenManager")
         self.fernet = Fernet(encryption_key)
         self.token_data = None
         self.load_token()
@@ -21,7 +21,7 @@ class TokenManager:
             with open(self.token_file_path, 'wb') as f:
                 f.write(encrypted_data)
         except Exception as e:
-            print(f"[TokenManager] Failed to save token: {e}")
+            print(f"Failed to save token: {e}")
 
     def load_token(self):
         """Loads and decrypts token from file if it exists."""
@@ -32,7 +32,7 @@ class TokenManager:
                 decrypted_data = self.fernet.decrypt(encrypted_data)
                 self.token_data = json.loads(decrypted_data.decode())
             except Exception as e:
-                print(f"[TokenManager] Failed to decrypt token: {e}")
+                print(f"Failed to decrypt token: {e}")
                 self.token_data = None
 
     def get_token(self):
