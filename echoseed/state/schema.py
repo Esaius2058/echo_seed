@@ -1,4 +1,8 @@
-from typing import TypedDict, Any
+from typing import TypedDict, Any, List, Dict
+
+class TrackMeta(TypedDict):
+    name: str
+    artist: str
 
 class FeatureVector(TypedDict):
     track_id: str
@@ -14,6 +18,7 @@ class FeatureVector(TypedDict):
 
 class EchoSeedState(TypedDict):
     playlist_id: str
-    tracks: list[str]
-    preview_urls: dict[str, str]
-    features: dict[str, FeatureVector]
+    tracks: List[str]
+    track_metadata: Dict[str, TrackMeta]
+    preview_urls: Dict[str, str]
+    features: Dict[str, FeatureVector]
