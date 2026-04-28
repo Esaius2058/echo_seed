@@ -33,7 +33,7 @@ class SpotifyPlaylistService:
             else:
                 results = None
 
-            print(f"⚠️ Playlist '{playlist_name}' not found.")
+            print(f"Playlist '{playlist_name}' not found.")
             return None
 
     def get_user_playlists(self) -> List[Playlist]:
@@ -68,7 +68,7 @@ class SpotifyPlaylistService:
             logger.error("Failed to fetch playlists: %s", str(e))
             raise RuntimeError("Playlist fetch failed") from e
 
-    def get_playlist_tracks(self, playlist_id: str) -> List[Track]:
+    def get_playlist_tracks(self, playlist_id: str, playlist_name: str = "") -> List[Track]:
         tracks = []
         offset = 0
         limit = 100
@@ -92,7 +92,7 @@ class SpotifyPlaylistService:
                     )
                     tracks.append(track)
 
-                logger.info("Fetched %d tracks for playlist %s", len(items), playlist_id)
+                logger.info("Fetched %d tracks for playlist %s, id: %s", len(items), playlist_name, playlist_id)
                 if not response.get("next"):
                     break
                 offset += limit

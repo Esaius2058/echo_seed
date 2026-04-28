@@ -1,4 +1,5 @@
 from typing import TypedDict, Any, List, Dict
+from typing_extensions import NotRequired
 
 class TrackMeta(TypedDict):
     name: str
@@ -9,12 +10,12 @@ class FeatureVector(TypedDict):
     bpm: float
     key: str
     energy: float
-    valence: float
-    arousal: float
-    brightness: float
-    danceability: float
-    mood_tags: list[str]
-    embedding: list[float]
+    valence: NotRequired[float]
+    arousal: NotRequired[float]
+    brightness: NotRequired[float]
+    danceability: NotRequired[float]
+    mood_tags: NotRequired[list[str]]
+    embedding: NotRequired[list[float]]
 
 class EchoSeedState(TypedDict):
     playlist_id: str

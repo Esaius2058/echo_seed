@@ -1,56 +1,64 @@
+import requests
+import io
 import logging
 from echoseed.state.schema import EchoSeedState, FeatureVector
-from echoseed.tools.audio_utils import download_and_resample
-from echoseed.tools.hf_client import HFClient
-from echoseed.tools.librosa_tools import extract_local_features
-from echoseed.api.auth import SpotifyAuthService
-from echoseed.api.playlist_service import SpotifyPlaylistService
 
 logger = logging.getLogger("audio_analyzer")
 
+# Use the Private IP of your m7i instance
+WORKER_URL = "http://10.0.10.180:8000/analyze"
+
 def analyzer_node(state: EchoSeedState):
     logger.info("Starting audio analysis for %d tracks", len(state["tracks"]))
-    hf = HFClient()
     features_dict = {}
 
     for track_id in state["tracks"]:
-        logger.info(f"Extracting features for: {track_id}")
-
-        preview_map = state.get("preview_urls", {})
-        preview_url = preview_map.get(track_id)
+        preview_url = state.get("preview_urls", {}).get(track_id)
 
         if not preview_url:
             logger.warning(f"No preview URL for {track_id}. Skipping.")
             continue
 
         try:
-            audio_bytes = download_and_resample(preview_url, target_str=24000)
-            local_feats = extract_local_features(audio_bytes)
+            # 1. Download preview (Keep it simple on the T3)
+            audio_response = requests.get(preview_url, timeout=10)
+            audio_bytes = audio_response.content
 
-            # HuggingFace Calls
-            embedding = hf.get_mert_embedding(audio_bytes)
+            # 2. Hit the m7i Worker for the heavy math
+            # This returns BOTH the BPM and the Embedding
+            worker_response = requests.post(
+                WORKER_URL,
+                files={'file': (f"{track_id}.mp3", audio_bytes, 'audio/mpeg')},
+                timeout=45  # Heavy AI inference needs a long timeout
+            )
 
-            # Construct the final vector
+            if worker_response.status_code != 200:
+                logger.error(f"Worker failed for {track_id}: {worker_response.text}")
+                continue
+
+            data = worker_response.json()
+
+            # 3. Construct the FeatureVector
+            # Note: Set defaults for things the worker doesn't provide yet
             feature_vec: FeatureVector = {
                 "track_id": track_id,
-                "bpm": local_feats["bpm"],
+                "bpm": data["bpm"],
+                "embedding": data["embedding"],
                 "key": "Unknown",
-                # Key extraction requires a chromagram matrix analysis, best left out unless strictly required for DJ mixing
-                "energy": local_feats["energy"],
-                "valence": emotion_data["valence"],
-                "arousal": emotion_data["arousal"],
-                "brightness": local_feats["brightness"],
-                "danceability": local_feats["danceability"],
-                "mood_tags": emotion_data["mood_tags"],
-                "embedding": embedding
+                # Padding missing keys with neutral defaults so the TypedDict is happy
+                "arousal": 0.5,
+                "valence": 0.5,
+                "brightness": 0.0,
+                "danceability": 0.5,
+                "energy": 0.5,
+                "mood_tags": ["pending_full_analysis"]
             }
 
             features_dict[track_id] = feature_vec
-            logger.info(f"Successfully generated feature vector for {track_id}")
+            logger.info(f"Successfully enriched {track_id} via m7i worker.")
 
         except Exception as e:
-            logger.error(f"Failed to process {track_id}: {e}")
+            logger.error(f"Pipeline failure for {track_id}: {e}")
             continue
 
-    # Return the dictionary to update the graph state
     return {"features": features_dict}
