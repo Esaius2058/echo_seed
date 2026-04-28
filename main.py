@@ -27,7 +27,7 @@ def main():
         # 1. Enforce Phase 1 Requirements
         check_langsmith_config()
 
-        # 2. Your existing Auth & UI Setup
+        # 2. Authenticate and get spotify client
         secret_key = os.getenv("SECRET_KEY", "default_secret_for_dev").encode()
         auth_service = SpotifyAuthService()
         auth_service.authenticate()
@@ -41,10 +41,11 @@ def main():
         network_monitor = NetworkMonitor(refresh_callback=auth_service.refresh_access_token)
         network_monitor.run()
 
-        logger.info("UI initialized")
+        logger.info("CLI initialized")
 
         playlist_service = SpotifyPlaylistService(spotify_client)
-        playlist_id = playlist_service.get_playlist_id("Slow Drift")
+        playlist_name = input("Enter the name of the playlist to mix: ")
+        playlist_id = playlist_service.get_playlist_id(playlist_name)
 
         # This returns a List[Track] based on your provided function
         all_track_objects = playlist_service.get_playlist_tracks(playlist_id)
