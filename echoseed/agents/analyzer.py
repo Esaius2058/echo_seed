@@ -20,7 +20,7 @@ def analyzer_node(state: EchoSeedState):
             continue
 
         try:
-            # 1. Download preview (Keep it simple on the T3)
+            # 1. Download preview
             audio_response = requests.get(preview_url, timeout=10)
             audio_bytes = audio_response.content
 
