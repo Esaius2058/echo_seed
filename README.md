@@ -1,8 +1,11 @@
 # 🌱 EchoSeed
 
-EchoSeed is an agentic, distributed audio intelligence system that blends Digital Signal Processing (DSP), Deep Learning, and LLM orchestration to curate playlists that don't just match metadata, but match the actual **"Music DNA"** of your library.
+EchoSeed is an AI-powered virtual DJ, one that actually listens to your music before building your playlist.
+Most playlist tools look at labels: genre, artist, release date. EchoSeed goes deeper. It listens to the raw audio of each song and breaks it down the same way a sound engineer would; the tempo, the energy, the emotional tone, the brightness of the mix, how hard the beat hits. Every song gets its own sonic fingerprint.
 
-Unlike traditional generators, EchoSeed uses a distributed worker-orchestrator model to perform high-compute inference on raw audio previews, extracting 768-dimensional embeddings to find the perfect sonic vibe.
+From there, EchoSeed arranges your playlist so that each song flows naturally into the next: matching energy levels, complementing keys, and easing the mood from one track to another. So there are no jarring jumps, no awkward silences, no tonal whiplash. Just a seamless listen, start to finish.
+
+The result sounds like a set built by a professional DJ who spent hours hand-picking and sequencing every track. Except it took seconds.
 
 ---
 
@@ -10,8 +13,8 @@ Unlike traditional generators, EchoSeed uses a distributed worker-orchestrator m
 
 EchoSeed decouples Spotify orchestration from heavy AI compute:
 
-- **Orchestrator (AWS T3)** — Runs the LangGraph engine, handles Spotify OAuth, manages the user CLI, and coordinates the analysis pipeline.
-- **AI Worker (AWS M7i)** — A high-performance FastAPI server that loads MERT-v1 into memory to perform raw audio inference, BPM detection, and spectral analysis.
+- **Orchestrator (AWS t3)** — Runs the LangGraph engine, handles Spotify OAuth, manages the user CLI, and coordinates the analysis pipeline.
+- **AI Worker (AWS m7i)** — A high-performance FastAPI server that loads MERT-v1 into memory to perform raw audio inference, BPM detection, and spectral analysis.
 
 ---
 
@@ -40,7 +43,7 @@ EchoSeed decouples Spotify orchestration from heavy AI compute:
 - [FastAPI](https://fastapi.tiangolo.com/) – High-performance worker API
 
 **Infrastructure**
-- AWS EC2 (M7i-flex for compute, T3 for orchestration)
+- AWS EC2 (m7i-flex for compute, t3 for orchestration)
 - systemd – Linux daemon management
 - zsh – Primary development environment
 
@@ -54,8 +57,15 @@ EchoSeed uses two branches depending on the environment:
 
 | Branch | Deploy on |
 |--------|-----------|
-| `main` | Orchestrator (T3) |
-| `worker` | AI Worker (M7i) |
+| `main` | Orchestrator (t3) |
+| `worker` | AI Worker (m7i) |
+
+#### Branch Logic
+| Component | `main` Branch purpose | `main` Branch purpose |
+|--------|---------------|---------------|
+| `main.py` | Initializes the CLI and triggers the LangGraph workflow. | Spins up a FastAPI server to listen for audio bytes. |
+| Data Flow | Streams raw audio bytes to the worker. | Receives bytes and returns BPM + 768D Embeddings. |
+| Dependencies | LangChain, Spotipy, Cryptography. | Cryptography.	PyTorch, Transformers, Librosa, Uvicorn. |
 
 ### 2. Configure Environment (`.env`)
 
@@ -74,7 +84,7 @@ LANGCHAIN_TRACING_V2=true
 WORKER_URL=http://<m7i-private-ip>:8000/analyze
 ```
 
-### 3. Initialize the Worker (M7i)
+### 3. Initialize the Worker (m7i)
 
 The worker requires a specialised environment to handle the OOM demands of audio models:
 
@@ -87,7 +97,7 @@ sudo systemctl enable echoseed-ai
 sudo systemctl start echoseed-ai
 ```
 
-### 4. Run the Pipeline (T3)
+### 4. Run the Pipeline (t3)
 
 ```bash
 python main.py
@@ -101,25 +111,38 @@ EchoSeed finds similarities by calculating **Cosine Similarity** between track e
 
 $$\text{similarity} = \frac{A \cdot B}{\|A\| \|B\|}$$
 
-Where `A` is your seed track and `B` is a candidate from your library. This allows EchoSeed to find tracks that *sound* alike — even across completely different genres.
+Where `A` is your seed track and `B` is a candidate from your library. This allows EchoSeed to find tracks that *sound* alike, even across completely different genres.
 
 ---
 
 ## 📂 Project Structure
+### Main Branch (The Orchestrator)
+**Target:** aws t3 instance
+**Role:** State management, Spotify API coordination, and LangGraph execution.
 
 ```
 echoseed/
 ├── api/         # Spotify auth & playlist services
 ├── graph/       # LangGraph state & node definitions
-├── ai/          # Clustering logic & preprocessing
 ├── security/    # Token encryption & network monitoring
 ├── ui/          # CLI menu system
 ├── state/       # TypedDict schemas for LangGraph
-main.py          # System entry point
-worker.py        # FastAPI worker (worker branch)
+├── main.py        # Orchestrator Entry Point (Invokes LangGraph)
 ```
 
+### Worker Branch (The AI Inference Engine)
+**Target:** AWS m7i-flex Instance
+**Role:** High-compute DSP analysis and MERT model inference.
+
+```
+echoseed/
+├── ai/              # Signal processing & Librosa wrappers
+├── models/          # Local MERT model cache (~400MB)
+└── main.py          # Worker Entry Point (FastAPI /analyze endpoint)
+```
 ---
+
+
 
 ## 📜 License
 
