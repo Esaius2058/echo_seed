@@ -22,7 +22,21 @@ def analyzer_node(state: EchoSeedState):
         try:
             # 1. Download preview
             audio_response = requests.get(preview_url, timeout=10)
+
+            # Check if the request actually succeeded
+            if audio_response.status_code != 200:
+                logger.error(f"Deezer download failed ({audio_response.status_code}) for {track_id}")
+                continue
+
             audio_bytes = audio_response.content
+
+            # Print the first 10 bytes to verify it's an MP3
+            # MP3 files usually start with 'ID3' (hex: 49 44 33) or 0xFF 0xFB
+            logger.info(f"First bytes for {track_id}: {audio_bytes[:10]}")
+
+            if b'<!DOCTYPE' in audio_bytes or b'<html' in audio_bytes:
+                logger.error(f"Received HTML instead of audio for {track_id}. URL might be expired.")
+                continue
 
             # 2. Hit the m7i Worker for the heavy math
             # This returns BOTH the BPM and the Embedding
