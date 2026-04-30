@@ -84,9 +84,7 @@ async def fetcher_node(state: EchoSeedState):
 
     # Run all Deezer searches concurrently
     if tracks_needing_search:
-        logger.info(
-            f"Firing {len(tracks_needing_search)} Deezer searches in parallel."
-        )
+        logger.info(f"Firing {len(tracks_needing_search)} Deezer searches in parallel.")
         fetched = await _fetch_all_previews(deezer, tracks_needing_search)
         preview_updates.update(fetched)
         logger.info(

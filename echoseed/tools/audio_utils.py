@@ -8,6 +8,7 @@ import logging
 
 logger = logging.getLogger("audio_utils")
 
+
 # The Pre-processor - fetches the raw bytes from Spotify’s CDN.
 def download_and_resample(preview_url: str, target_str: int = 16000) -> bytes:
     """Downloads an MP3 preview, saves it to disk temporarily, resamples it, and returns WAV bytes."""
@@ -30,7 +31,7 @@ def download_and_resample(preview_url: str, target_str: int = 16000) -> bytes:
 
         # 4. Convert to a clean WAV byte-stream for HuggingFace
         wav_io = io.BytesIO()
-        sf.write(wav_io, y, sr, format='WAV', subtype='PCM_16')
+        sf.write(wav_io, y, sr, format="WAV", subtype="PCM_16")
 
         return wav_io.getvalue()
 

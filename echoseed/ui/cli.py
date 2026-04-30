@@ -4,8 +4,11 @@ from spotipy import Spotify
 from ..api.auth import SpotifyAuthService
 
 base_dir = Path(__file__).resolve().parents[2]
-clustered_tracks_file = base_dir / "echoseed" / "data" / "processed" / "clustered_tracks.csv"
+clustered_tracks_file = (
+    base_dir / "echoseed" / "data" / "processed" / "clustered_tracks.csv"
+)
 mood_labels_file = base_dir / "cluster_mood_map.json"
+
 
 class PlaylistCLI:
     def __init__(self, sp_client: Spotify):
@@ -34,13 +37,15 @@ class PlaylistCLI:
                     print(f"Selected {self.selected_mood_label}.")
                     return self.selected_mood_label
                 else:
-                    print(f"Please enter a number between 1 and {len(self.mood_labels)}.")
+                    print(
+                        f"Please enter a number between 1 and {len(self.mood_labels)}."
+                    )
             except ValueError:
                 print("Invalid input. Please enter a number.")
+
 
 if __name__ == "__main__":
     auth = SpotifyAuthService()
     spotify_client = auth.get_spotify_client()
     cli = PlaylistCLI(spotify_client)
     cli.display_menu()
-

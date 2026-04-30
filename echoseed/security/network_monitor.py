@@ -7,10 +7,16 @@ from config import logger_config
 import requests
 from echoseed.security.token_manager import TokenManager
 
+
 class NetworkMonitor:
     logger_config.setup_logger()
 
-    def __init__(self, test_url="https://www.google.com", check_interval=40, refresh_callback=None):
+    def __init__(
+        self,
+        test_url="https://www.google.com",
+        check_interval=40,
+        refresh_callback=None,
+    ):
         self.test_url = test_url
         self.check_interval = check_interval
         self.refresh_callback = refresh_callback
@@ -63,6 +69,7 @@ class NetworkMonitor:
 
     def stop(self):
         self.running = False
+
 
 if __name__ == "__main__":
     load_dotenv()

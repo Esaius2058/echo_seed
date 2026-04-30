@@ -5,6 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet, MultiFernet
 
+
 class TokenManager:
     def __init__(self, encryption_key: bytes):
         base_dir = Path(__file__).resolve().parents[2]
@@ -18,7 +19,7 @@ class TokenManager:
         try:
             json_data = json.dumps(token_data).encode()
             encrypted_data = self.fernet.encrypt(json_data)
-            with open(self.token_file_path, 'wb') as f:
+            with open(self.token_file_path, "wb") as f:
                 f.write(encrypted_data)
         except Exception as e:
             print(f"Failed to save token: {e}")
@@ -50,7 +51,7 @@ class TokenManager:
             os.remove(self.token_file_path)
         self.token_data = None
 
-    def rotate_key(self, new_key:bytes = None, encrypted_token: bytes = None) -> bytes:
+    def rotate_key(self, new_key: bytes = None, encrypted_token: bytes = None) -> bytes:
         if not new_key:
             new_key = Fernet.generate_key()
 
@@ -66,7 +67,7 @@ class TokenManager:
 
         return rotated
 
-    def _update_env_file(self, new_key:str, new_value:str):
+    def _update_env_file(self, new_key: str, new_value: str):
         lines = []
         found = False
         base_dir = Path(__file__).resolve().parents[2]

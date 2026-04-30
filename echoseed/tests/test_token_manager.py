@@ -11,13 +11,15 @@ tm = TokenManager(key)
 base_dir = Path(__file__).resolve().parents[2]
 env_path = base_dir / ".env"
 
+
 def test_load_and_save_token():
     dummy_data = {"access_token": "abc123"}
 
     tm.update_token(dummy_data)
     loaded = tm.get_token()
 
-    assert loaded["access_token"] ==  "abc123"
+    assert loaded["access_token"] == "abc123"
+
 
 def test_clear_token():
     tm.clear_token()
@@ -25,8 +27,9 @@ def test_clear_token():
     assert os.path.exists(tm.token_file_path) == False
     assert not tm.get_token()
 
+
 def test_rotate_key():
-    token = {"access_token" : "lightierr"}
+    token = {"access_token": "lightierr"}
     tm.save_token(token)
 
     new_key = Fernet.generate_key()
@@ -45,12 +48,14 @@ def test_rotate_key():
         assert secret == f"SECRET_KEY={new_key.decode("utf-8")}"
         assert tm.fernet.decrypt(rotated).decode() == token["access_token"]
 
+
 def test_fail_decrypt_with_wrong_key():
     token = {"access_token": "hol'up"}
     tm.save_token(token)
 
     tm2 = TokenManager(Fernet.generate_key())
     assert not tm2.load_token()
+
 
 """def test_refresh_token():
     old_token = {"access_token": "old_token"}

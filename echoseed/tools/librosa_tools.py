@@ -2,6 +2,7 @@ import librosa
 import numpy as np
 import io
 
+
 # The DSP (Digital Signal Processing) layer
 def extract_local_features(audio_bytes: bytes) -> dict:
     y, sr = librosa.load(io.BytesIO(audio_bytes), sr=None)
@@ -18,7 +19,7 @@ def extract_local_features(audio_bytes: bytes) -> dict:
     onset_env = librosa.onset.onset_strength(y=y, sr=sr)
     danceability = float(np.var(onset_env))
 
-    #Calculate BPM (Tempo)
+    # Calculate BPM (Tempo)
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
     # librosa 0.10+ returns tempo as a 1D array, so we extract the float
     bpm = float(tempo[0]) if isinstance(tempo, np.ndarray) else float(tempo)
@@ -28,5 +29,5 @@ def extract_local_features(audio_bytes: bytes) -> dict:
         "energy": energy,
         "brightness": brightness,
         "danceability": danceability,
-        "bpm": bpm
+        "bpm": bpm,
     }

@@ -39,7 +39,7 @@ async def run_test_pipeline():
                 t.id: {"name": t.name, "artist": t.artist} for t in test_tracks
             },
             "preview_urls": {},
-            "features": {}
+            "features": {},
         }
 
         # 4. Graph Execution

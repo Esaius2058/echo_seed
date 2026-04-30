@@ -1,6 +1,7 @@
 import os
 import httpx
 
+
 class HFClient:
     def __init__(self):
         self.token = os.getenv("HUGGINGFACE_API_TOKEN")
@@ -22,7 +23,9 @@ class HFClient:
 
             if response.status_code == 503:
                 estimated_time = response.json().get("estimated_time", 20)
-                logger.info(f"Model loading... waiting {estimated_time}s (Attempt {attempt + 1})")
+                logger.info(
+                    f"Model loading... waiting {estimated_time}s (Attempt {attempt + 1})"
+                )
                 time.sleep(estimated_time)
                 continue
 
@@ -37,10 +40,18 @@ class HFClient:
         # Base V/A Coordinates (Scale 1-9) for MTG-Jamendo style tags
         # We use these to calculate the final score if the API only returns tags
         VA_MAP = {
-            "happy": (8.0, 7.0), "excited": (7.5, 8.5), "energetic": (7.0, 8.5),
-            "dark": (3.0, 4.5), "sad": (2.0, 3.0), "melancholic": (3.5, 3.5),
-            "slow": (5.0, 2.0), "deep": (4.5, 4.0), "calm": (6.5, 2.5),
-            "aggressive": (2.5, 8.5), "intense": (4.0, 8.0), "epic": (6.5, 7.5)
+            "happy": (8.0, 7.0),
+            "excited": (7.5, 8.5),
+            "energetic": (7.0, 8.5),
+            "dark": (3.0, 4.5),
+            "sad": (2.0, 3.0),
+            "melancholic": (3.5, 3.5),
+            "slow": (5.0, 2.0),
+            "deep": (4.5, 4.0),
+            "calm": (6.5, 2.5),
+            "aggressive": (2.5, 8.5),
+            "intense": (4.0, 8.0),
+            "epic": (6.5, 7.5),
         }
 
         for attempt in range(3):
@@ -55,7 +66,9 @@ class HFClient:
                     return {
                         "valence": float(predictions.get("valence", 5.0)),
                         "arousal": float(predictions.get("arousal", 5.0)),
-                        "mood_tags": predictions.get("tags", [])  # Adjust key based on your JSON
+                        "mood_tags": predictions.get(
+                            "tags", []
+                        ),  # Adjust key based on your JSON
                     }
 
                 # Scenario B: API returns a standard HuggingFace list of dicts
@@ -92,11 +105,12 @@ class HFClient:
                     return {
                         "valence": round(max(1.0, min(9.0, final_v)), 2),
                         "arousal": round(max(1.0, min(9.0, final_a)), 2),
-                        "mood_tags": top_tags[:5]  # Keep the top 5
+                        "mood_tags": top_tags[:5],  # Keep the top 5
                     }
 
             if response.status_code == 503:
                 import time
+
                 estimated_time = response.json().get("estimated_time", 15)
                 logger.info(f"Emotion model loading... waiting {estimated_time}s")
                 time.sleep(estimated_time)
@@ -107,4 +121,3 @@ class HFClient:
         # Fallback
         logger.warning("Emotion model failed. Returning neutral 1-9 coordinates.")
         return {"valence": 5.0, "arousal": 5.0, "mood_tags": ["unknown"]}
-

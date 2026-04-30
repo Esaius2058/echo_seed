@@ -7,6 +7,7 @@ import sys
 
 sys.modules["__main__"] = object()
 
+
 def test_display_menu_shows_all_moods(monkeypatch, capsys, tmp_path):
     fake_mood_file = tmp_path / "cluster_mood_map.json"
     fake_data = {"0": "Happy", "1": "Sad"}
@@ -30,6 +31,7 @@ def test_display_menu_shows_all_moods(monkeypatch, capsys, tmp_path):
     assert "Sad" in captured.out
     assert selected == "Happy"
 
+
 def test_display_menu_valid_choice(monkeypatch, tmp_path):
     fake_mood_file = tmp_path / "cluster_mood_map.json"
     fake_data = {"0": "happy", "1": "hype", "2": "sad", "3": "mellow"}
@@ -41,7 +43,7 @@ def test_display_menu_valid_choice(monkeypatch, tmp_path):
     monkeypatch.setattr("echoseed.ui.cli.mood_labels_file", fake_mood_file)
     monkeypatch.setattr("echoseed.ui.cli.clustered_tracks_file", fake_clustered_file)
 
-    monkeypatch.setattr(builtins, "input", lambda _:"3")
+    monkeypatch.setattr(builtins, "input", lambda _: "3")
 
     sp_client = MagicMock(spec=Spotify)
     cli = PlaylistCLI(sp_client)
@@ -73,6 +75,7 @@ def test_display_menu_invalid_choice(monkeypatch, tmp_path, capsys):
 
     assert "Please enter a number between 1 and 4." in captured.out
     assert selected == "hype"
+
 
 def test_display_menu_non_numeric_input(monkeypatch, capsys, tmp_path):
     fake_mood_file = tmp_path / "cluster_mood_map.json"

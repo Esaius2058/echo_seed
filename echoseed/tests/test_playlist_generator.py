@@ -10,6 +10,7 @@ sp_client = MagicMock(spec=Spotify)
 ai_client = MagicMock(spec=OpenAI)
 generator = PlaylistGenerator(sp_client, "Mellow")
 
+
 def test_get_clusters_for_mood_returns_correct_ids(tmp_path, monkeypatch):
     fake_mood_labels_file = tmp_path / "cluster_mood_map.json"
     fake_data = {"0": "Happy", "1": "Sad", "2": "Hype", "3": "Mellow"}
@@ -21,12 +22,15 @@ def test_get_clusters_for_mood_returns_correct_ids(tmp_path, monkeypatch):
 
     assert mood == ["3"]
 
+
 def test_get_playlist_name_returns_string(monkeypatch):
     class FakeResponse:
         class FakeChoice:
             class FakeMessage:
                 content = "Sunset Vibes\nLate Night Drive\nMood Booster"
+
             message = FakeMessage()
+
         choices = [FakeChoice()]
 
     def fake_create(*args, **kwargs):
@@ -37,6 +41,7 @@ def test_get_playlist_name_returns_string(monkeypatch):
     name = generator.get_playlist_name()
 
     assert name in ["Sunset Vibes", "Late Night Drive", "Mood Booster"]
+
 
 def test_get_artists_from_playlist_extracts_unique_names(monkeypatch):
     sp_client.user_playlists.return_value = {
@@ -72,16 +77,21 @@ def test_get_artists_from_playlist_extracts_unique_names(monkeypatch):
 
     assert set(artists) == {"Drake", "Rihanna", "Kanye West", "Adele"}
 
+
 def test_get_recommended_tracks_returns_list(monkeypatch):
     class FakeResponse:
         class FakeChoice:
             class FakeMessage:
-                content = ("1.Kendrick Lamar - Alright\n"
-                           "2.J Cole - Middle Child\n"
-                           "3.SZA - Broken Clocks\n"
-                           "4.Jay Rock - OSOM\n"
-                           "5.J Cole - Apparently")
+                content = (
+                    "1.Kendrick Lamar - Alright\n"
+                    "2.J Cole - Middle Child\n"
+                    "3.SZA - Broken Clocks\n"
+                    "4.Jay Rock - OSOM\n"
+                    "5.J Cole - Apparently"
+                )
+
             message = FakeMessage()
+
         choices = [FakeChoice()]
 
     def fake_create(*args, **kwargs):
@@ -91,11 +101,14 @@ def test_get_recommended_tracks_returns_list(monkeypatch):
 
     recommended_tracks = generator.get_recommended_tracks(limit=5)
 
-    assert recommended_tracks == ["Kendrick Lamar - Alright",
-                                  "J Cole - Middle Child",
-                                  "SZA - Broken Clocks",
-                                  "Jay Rock - OSOM",
-                                  "J Cole - Apparently"]
+    assert recommended_tracks == [
+        "Kendrick Lamar - Alright",
+        "J Cole - Middle Child",
+        "SZA - Broken Clocks",
+        "Jay Rock - OSOM",
+        "J Cole - Apparently",
+    ]
+
 
 def test_generate_playlist_creates_and_adds(monkeypatch):
     sp_client.me.return_value = {"id": "fake_user"}
@@ -105,18 +118,24 @@ def test_generate_playlist_creates_and_adds(monkeypatch):
         class FakeChoice:
             class FakeMessage:
                 content = "Sunset Vibes\nLate Night Drive\nMood Booster"
+
             message = FakeMessage()
+
         choices = [FakeChoice()]
 
     class FakeRecResponse:
         class FakeChoice:
             class FakeMessage:
-                content = ("1.Kendrick Lamar - Alright\n"
-                           "2.J Cole - Middle Child\n"
-                           "3.SZA - Broken Clocks\n"
-                           "4.Jay Rock - OSOM\n"
-                           "5.J Cole - Apparently")
+                content = (
+                    "1.Kendrick Lamar - Alright\n"
+                    "2.J Cole - Middle Child\n"
+                    "3.SZA - Broken Clocks\n"
+                    "4.Jay Rock - OSOM\n"
+                    "5.J Cole - Apparently"
+                )
+
             message = FakeMessage()
+
         choices = [FakeChoice()]
 
     def fake_create_name(*args, **kwargs):
@@ -125,17 +144,24 @@ def test_generate_playlist_creates_and_adds(monkeypatch):
     def fake_create_recs(*args, **kwargs):
         return FakeRecResponse()
 
-    monkeypatch.setattr(sp_client, "search", lambda q, type, limit: {
-        "tracks": {"items": [{"uri": f"spotify:track:{q.replace(' ', '_')}"}]}
-    })
+    monkeypatch.setattr(
+        sp_client,
+        "search",
+        lambda q, type, limit: {
+            "tracks": {"items": [{"uri": f"spotify:track:{q.replace(' ', '_')}"}]}
+        },
+    )
 
     # Patch name and rec calls separately
-    monkeypatch.setattr(generator.ai_client.chat.completions, "create", fake_create_name)
+    monkeypatch.setattr(
+        generator.ai_client.chat.completions, "create", fake_create_name
+    )
     # Patch get_recommended_tracks to directly use FakeRecResponse
-    monkeypatch.setattr(generator, "get_recommended_tracks", lambda limit=25: [
-        "Drake - Hotline Bling",
-        "Kanye West - Stronger"
-    ])
+    monkeypatch.setattr(
+        generator,
+        "get_recommended_tracks",
+        lambda limit=25: ["Drake - Hotline Bling", "Kanye West - Stronger"],
+    )
 
     generator.generate_playlist(limit=2)
 
@@ -145,6 +171,7 @@ def test_generate_playlist_creates_and_adds(monkeypatch):
     assert playlist_id == "playlist123"
     assert all(uri.startswith("spotify:track:") for uri in track_uris)
     assert "Hotline_Bling" in track_uris[0] or "Stronger" in track_uris[0]
+
 
 def test_cli_to_generator_integration(monkeypatch, tmp_path):
     fake_mood_file = tmp_path / "cluster_mood_map.json"
@@ -174,18 +201,24 @@ def test_cli_to_generator_integration(monkeypatch, tmp_path):
         class FakeChoice:
             class FakeMessage:
                 content = "Sunset Vibes\nLate Night Drive\nMood Booster"
+
             message = FakeMessage()
+
         choices = [FakeChoice()]
 
     class FakeRecResponse:
         class FakeChoice:
             class FakeMessage:
-                content = ("1.Kendrick Lamar - Alright\n"
-                           "2.J Cole - Middle Child\n"
-                           "3.SZA - Broken Clocks\n"
-                           "4.Jay Rock - OSOM\n"
-                           "5.J Cole - Apparently")
+                content = (
+                    "1.Kendrick Lamar - Alright\n"
+                    "2.J Cole - Middle Child\n"
+                    "3.SZA - Broken Clocks\n"
+                    "4.Jay Rock - OSOM\n"
+                    "5.J Cole - Apparently"
+                )
+
             message = FakeMessage()
+
         choices = [FakeChoice()]
 
     def fake_create_name(*args, **kwargs):
@@ -194,15 +227,25 @@ def test_cli_to_generator_integration(monkeypatch, tmp_path):
     def fake_create_recs(*args, **kwargs):
         return FakeRecResponse()
 
-    monkeypatch.setattr(sp_client, "search", lambda q, type, limit:{
-        "tracks": {"items": [{"uri": f"spotify:track:{q.replace(' ', '_')}"}]}
-    })
-    monkeypatch.setattr(generator.ai_client.chat.completions, "create", fake_create_name)
-    monkeypatch.setattr(generator, "get_recommended_tracks", lambda limit=25: [
-        "J Cole -  Apparently",
-        "Kanye West - Stronger",
-        "Earl Sweatshirt - Sunday"
-    ])
+    monkeypatch.setattr(
+        sp_client,
+        "search",
+        lambda q, type, limit: {
+            "tracks": {"items": [{"uri": f"spotify:track:{q.replace(' ', '_')}"}]}
+        },
+    )
+    monkeypatch.setattr(
+        generator.ai_client.chat.completions, "create", fake_create_name
+    )
+    monkeypatch.setattr(
+        generator,
+        "get_recommended_tracks",
+        lambda limit=25: [
+            "J Cole -  Apparently",
+            "Kanye West - Stronger",
+            "Earl Sweatshirt - Sunday",
+        ],
+    )
 
     generator.generate_playlist(limit=3)
 

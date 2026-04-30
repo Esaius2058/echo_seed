@@ -11,6 +11,7 @@ from echoseed.model.playlist import Playlist
 
 logger = logging.getLogger(__name__)
 
+
 class SpotifyPlaylistService:
     def __init__(self, spotify_client: Spotify):
         self.spotify = spotify_client
@@ -19,7 +20,7 @@ class SpotifyPlaylistService:
 
     def get_playlist_id(self, playlist_name):
         if not self.user_id:
-           logger.error("No User Id passed in")
+            logger.error("No User Id passed in")
 
         results = self.spotify.user_playlists(self.user_id)
         while results:
@@ -43,7 +44,9 @@ class SpotifyPlaylistService:
 
         try:
             while True:
-                response = self.spotify.current_user_playlists(limit=limit, offset=offset)
+                response = self.spotify.current_user_playlists(
+                    limit=limit, offset=offset
+                )
                 items = response.get("items", [])
                 if not items:
                     break
@@ -52,7 +55,9 @@ class SpotifyPlaylistService:
                     playlist = Playlist(
                         id=item["id"],
                         name=item["name"],
-                        owner_id=item["owner"]["id"] if item.get("owner") else "unknown"
+                        owner_id=(
+                            item["owner"]["id"] if item.get("owner") else "unknown"
+                        ),
                     )
                     if playlist.name:
                         playlists.append(playlist)
@@ -68,14 +73,18 @@ class SpotifyPlaylistService:
             logger.error("Failed to fetch playlists: %s", str(e))
             raise RuntimeError("Playlist fetch failed") from e
 
-    def get_playlist_tracks(self, playlist_id: str, playlist_name: str = "") -> List[Track]:
+    def get_playlist_tracks(
+        self, playlist_id: str, playlist_name: str = ""
+    ) -> List[Track]:
         tracks = []
         offset = 0
         limit = 100
 
         try:
             while True:
-                response = self.spotify.playlist_items(playlist_id, limit=limit, offset=offset)
+                response = self.spotify.playlist_items(
+                    playlist_id, limit=limit, offset=offset
+                )
                 items = response.get("items", [])
                 if not items:
                     break
@@ -88,11 +97,16 @@ class SpotifyPlaylistService:
                         artist=track_info["artists"][0]["name"],
                         album=track_info["album"]["name"],
                         preview_url=track_info["preview_url"],
-                        duration_ms=track_info["duration_ms"]
+                        duration_ms=track_info["duration_ms"],
                     )
                     tracks.append(track)
 
-                logger.info("Fetched %d tracks for playlist %s, id: %s", len(items), playlist_name, playlist_id)
+                logger.info(
+                    "Fetched %d tracks for playlist %s, id: %s",
+                    len(items),
+                    playlist_name,
+                    playlist_id,
+                )
                 if not response.get("next"):
                     break
                 offset += limit
@@ -101,7 +115,9 @@ class SpotifyPlaylistService:
             return tracks
 
         except SpotifyException as e:
-            logger.error("Failed to fetch tracks for playlist %s: %s", playlist_id, str(e))
+            logger.error(
+                "Failed to fetch tracks for playlist %s: %s", playlist_id, str(e)
+            )
             raise RuntimeError("Track fetch failed") from e
 
     def randomize_playlist(self, playlist_name: str):
@@ -136,15 +152,16 @@ class SpotifyPlaylistService:
 
         logger.info("Preparing to add %d tracks back", len(track_uris))
         for i in range(0, len(track_uris), 100):
-            chunk = track_uris[i:i + 100]
+            chunk = track_uris[i : i + 100]
             self.spotify.playlist_add_items(playlist_id, chunk)
             print(f"Added {len(chunk)} tracks...")
 
         print("Playlist randomized successfully!")
 
+
 if __name__ == "__main__":
     auth_service = SpotifyAuthService()
     auth_service.authenticate()
-    sp_client =  auth_service.get_spotify_client()
+    sp_client = auth_service.get_spotify_client()
     playlist_service = SpotifyPlaylistService(sp_client)
     playlist_service.randomize_playlist("rock")

@@ -18,6 +18,7 @@ TIMEOUT_SECONDS = 60
 
 logger = logging.getLogger("echoseed.auth")
 
+
 class SpotifyAuthService:
     def __init__(self):
         self.auth_manager = SpotifyOAuth(
@@ -27,13 +28,13 @@ class SpotifyAuthService:
             scope=SCOPE,
             open_browser=False,
             show_dialog=True,
-            cache_path=Path.home() / ".spotify_cache"
+            cache_path=Path.home() / ".spotify_cache",
         )
         self.spotify = None
         self.auth_code = None
         self.token_info = None
         self._app = Flask(__name__)
-        self._app.add_url_rule('/callback', view_func=self._callback, methods=['GET'])
+        self._app.add_url_rule("/callback", view_func=self._callback, methods=["GET"])
 
     def _callback(self):
         self.auth_code = request.args.get("code")
@@ -52,7 +53,9 @@ class SpotifyAuthService:
             self.spotify = Spotify(auth=cached_token["access_token"])
             return
 
-        logger.info("[SpotifyAuthService] No cached token found. Starting browser auth flow...")
+        logger.info(
+            "[SpotifyAuthService] No cached token found. Starting browser auth flow..."
+        )
         self._do_browser_auth()
 
     def _do_browser_auth(self):
@@ -73,7 +76,10 @@ class SpotifyAuthService:
             time.sleep(1)
 
         if not self.auth_code:
-            logger.error("[SpotifyAuthService] Authentication timed out after %s seconds", TIMEOUT_SECONDS)
+            logger.error(
+                "[SpotifyAuthService] Authentication timed out after %s seconds",
+                TIMEOUT_SECONDS,
+            )
             raise RuntimeError("Authentication timed out")
 
         logger.info("Shutting down server thread... (manual kill needed for Flask)")

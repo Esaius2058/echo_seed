@@ -70,12 +70,16 @@ class DeezerSearchTool:
             clean_query = f"{clean_name} {clean_artist}"
 
             if clean_query != query:
-                logger.info(f"Pass 1 failed, retrying with cleaned query: '{clean_query}'")
+                logger.info(
+                    f"Pass 1 failed, retrying with cleaned query: '{clean_query}'"
+                )
                 preview = self._search(clean_query)
                 if preview:
                     return preview
 
-            logger.warning(f"Deezer found no preview for: {track_name} by {artist_name}")
+            logger.warning(
+                f"Deezer found no preview for: {track_name} by {artist_name}"
+            )
             return None
 
         except Exception as e:

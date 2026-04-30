@@ -3,6 +3,7 @@ from echoseed.state.schema import EchoSeedState
 from echoseed.agents.analyzer import analyzer_node
 from echoseed.agents.fetcher import fetcher_node
 
+
 def build_graph():
     builder = StateGraph(EchoSeedState)
 

@@ -1,9 +1,11 @@
 from typing import TypedDict, Any, List, Dict
 from typing_extensions import NotRequired
 
+
 class TrackMeta(TypedDict):
     name: str
     artist: str
+
 
 class FeatureVector(TypedDict):
     track_id: str
@@ -16,6 +18,7 @@ class FeatureVector(TypedDict):
     danceability: float
     mood_tags: list[str]
     embedding: list[float]
+
 
 class EchoSeedState(TypedDict):
     playlist_id: str
