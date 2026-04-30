@@ -61,7 +61,7 @@ EchoSeed uses two branches depending on the environment:
 | `worker` | AI Worker (m7i) |
 
 #### Branch Logic
-| Component | `main` Branch purpose | `main` Branch purpose |
+| Component | `main` Branch purpose | `worker` Branch purpose |
 |--------|---------------|---------------|
 | `main.py` | Initializes the CLI and triggers the LangGraph workflow. | Spins up a FastAPI server to listen for audio bytes. |
 | Data Flow | Streams raw audio bytes to the worker. | Receives bytes and returns BPM + 768D Embeddings. |
