@@ -6,10 +6,20 @@ from echoseed.state.schema import EchoSeedState, FeatureVector
 logger = logging.getLogger("audio_analyzer")
 
 WORKER_URL = "http://10.10.10.2:8000/analyze"
-
 # How many tracks to send to the MI300X concurrently.
 # The GPU can handle more but this avoids overwhelming the T3's outbound bandwidth.
 MAX_CONCURRENT = 5
+
+
+def normalize_bpm(bpm: float):
+    """Clamps BPM to a sensible 60-180 range by halving/doubling harmonics."""
+    if bpm == 0:
+        return 120.0  # fallback for complete failure
+    while bpm > 180.0:
+        bpm /= 2.0
+    while bpm < 60.0:
+        bpm *= 2.0
+    return round(bpm, 2)
 
 
 async def _process_track(
@@ -49,32 +59,34 @@ async def _process_track(
             worker_response = await client.post(
                 WORKER_URL,
                 files={"file": (f"{track_id}.mp3", audio_bytes, "audio/mpeg")},
-                timeout=45.0,  # MERT inference needs breathing room
+                timeout=60.0,  # MERT inference needs breathing room
             )
 
             if worker_response.status_code != 200:
-                logger.error(
-                    f"Worker failed for {track_id}: {worker_response.text}"
-                )
+                logger.error(f"Worker failed for {track_id}: {worker_response.text}")
                 return track_id, None
 
             data = worker_response.json()
 
             # ── 3. Build the FeatureVector ─────────────────────────────────────
             feature_vec: FeatureVector = {
-                "track_id":    track_id,
-                "bpm":         data["bpm"],
-                "embedding":   data["embedding"],
-                "key":         "Unknown",
-                "arousal":     0.5,
-                "valence":     0.5,
-                "brightness":  0.0,
-                "danceability":0.5,
-                "energy":      0.5,
-                "mood_tags":   ["pending_full_analysis"],
+                "track_id": track_id,
+                "bpm": normalize_bpm(data.get("bpm")),
+                "embedding": data["embedding"],
+                "key": data.get("key", "Unknown"),
+                "arousal": data.get("arousal", 5.0),
+                "valence": data.get("valence", 5.0),
+                "brightness": data.get("brightness", 0.5),
+                "danceability": data.get("danceability", 0.5),
+                "energy": data.get("energy", 0.5),
+                "mood_tags": ["pending_full_analysis"],
             }
 
-            logger.info(f"Successfully enriched {track_id} via MI300X worker.")
+            logger.info(
+                f"Successfully enriched {track_id} via MI300X worker "
+                f"| BPM: {feature_vec['bpm']} "
+                f"| Tags: {feature_vec['mood_tags']}"
+            )
             return track_id, feature_vec
 
         except Exception as e:
@@ -106,15 +118,13 @@ async def _run_parallel_analysis(
     }
 
 
-def analyzer_node(state: EchoSeedState):
+async def analyzer_node(state: EchoSeedState):
     """
     Analyzes all tracks in parallel by concurrently downloading previews and
     sending them to the MI300X worker. The GPU processes multiple batches
     simultaneously instead of sitting idle between sequential requests.
     """
-    logger.info(
-        "Starting parallel audio analysis for %d tracks", len(state["tracks"])
-    )
+    logger.info("Starting parallel audio analysis for %d tracks", len(state["tracks"]))
 
     preview_urls = state.get("preview_urls", {})
 
@@ -138,7 +148,8 @@ def analyzer_node(state: EchoSeedState):
         f"(max {MAX_CONCURRENT} in-flight at once)."
     )
 
-    features_dict = asyncio.run(_run_parallel_analysis(tracks_with_urls))
+    # Await the coroutine directly using the existing event loop
+    features_dict = await _run_parallel_analysis(tracks_with_urls)
 
     logger.info(
         f"Parallel analysis complete. "
