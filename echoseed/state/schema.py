@@ -1,7 +1,6 @@
 from typing import TypedDict, Any, List, Dict
 from typing_extensions import NotRequired
 
-
 class TrackMeta(TypedDict):
     name: str
     artist: str
