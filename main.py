@@ -31,7 +31,6 @@ async def run_test_pipeline():
         logger.info(f"Testing pipeline with: {[t.name for t in test_tracks]}")
 
         # 3. Initial State
-        # Note: preview_urls is empty because Deezer will source them
         initial_state = {
             "playlist_id": playlist_id,
             "tracks": [t.id for t in test_tracks],
@@ -47,13 +46,38 @@ async def run_test_pipeline():
         logger.info("Invoking LangGraph (Async)...")
         result = await graph.ainvoke(initial_state)
 
-        # 5. Validation
-        features = result.get("features", {})
-        logger.info(f"Test Complete. Analyzed {len(features)}/5 tracks.")
+        # 5. Validation (Phase 3: Scorer Results)
+        sorted_results = result.get("sorted_results", [])
 
-        for tid, data in features.items():
+        if not sorted_results:
+            logger.error(
+                "No sorted results returned. Something went wrong in the scorer."
+            )
+            return
+
+        logger.info(f"Test Complete. Scored {len(sorted_results)} candidates.")
+
+        # Get the seed track info from the state features
+        features = result.get("features", {})
+        if not features:
+            logger.error("No features returned to identify the seed track.")
+            return
+
+        seed_id = list(features.keys())[0]
+        seed_name = result["track_metadata"][seed_id]["name"]
+
+        print(f"\n--- SEED TRACK: {seed_name} ---")
+
+        for rank, match in enumerate(sorted_results, 1):
+            tid = match["track_id"]
             name = result["track_metadata"][tid]["name"]
-            print(f"DONE: {name} | BPM: {data['bpm']} | Energy: {data.get('energy')}")
+            score = match["score"]
+            breakdown = match["breakdown"]
+
+            print(f"\n#{rank}: {name} (Total Score: {score})")
+            print(
+                f"  └─ Timbre: {breakdown['embedding']} | Harmonic: {breakdown['harmonic']} | Energy: {breakdown['energy']} | Mood: {breakdown['mood']}"
+            )
 
     except Exception as e:
         logger.error(f"Test failed: {e}")
