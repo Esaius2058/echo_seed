@@ -5,7 +5,9 @@ from echoseed.state.schema import EchoSeedState, FeatureVector
 
 logger = logging.getLogger("audio_analyzer")
 
-WORKER_URL = "http://10.10.10.2:8000/analyze"
+WORKER_URL = "http://10.8.0.1:8000/analyze"
+HEALTH_URL = "http://10.8.0.1:8000/health"
+
 # How many tracks to send to the MI300X concurrently.
 # The GPU can handle more but this avoids overwhelming the T3's outbound bandwidth.
 MAX_CONCURRENT = 5
@@ -90,7 +92,7 @@ async def _process_track(
             return track_id, feature_vec
 
         except Exception as e:
-            logger.error(f"Pipeline failure for {track_id}: {e}")
+            logger.error(f"Pipeline failure for {track_id}: {repr(e)}")
             return track_id, None
 
 
@@ -125,6 +127,19 @@ async def analyzer_node(state: EchoSeedState):
     simultaneously instead of sitting idle between sequential requests.
     """
     logger.info("Starting parallel audio analysis for %d tracks", len(state["tracks"]))
+
+    # ── Pre-flight Worker Connection Test ──────────────────────────────────────
+    logger.info(f"Testing worker connection at {HEALTH_URL}...")
+    try:
+        async with httpx.AsyncClient() as client:
+            health_response = await client.get(HEALTH_URL, timeout=5.0)
+            health_response.raise_for_status()
+            logger.info(f"Worker connection successful: {health_response.json()}")
+    except Exception as e:
+        logger.error(f"Fatal: Cannot reach worker. Connection test failed: {repr(e)}")
+        logger.error("Aborting analysis to prevent pipeline hang.")
+        return {"features": {}}
+    # ──────────────────────────────────────────────────────────────────────────
 
     preview_urls = state.get("preview_urls", {})
 
