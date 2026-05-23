@@ -5,12 +5,12 @@ from echoseed.state.schema import EchoSeedState, FeatureVector
 
 logger = logging.getLogger("audio_analyzer")
 
-WORKER_URL = "http://10.8.0.1:8000/analyze"
-HEALTH_URL = "http://10.8.0.1:8000/health"
+WORKER_URL = "http://10.0.11.150:8000/analyze"
+HEALTH_URL = "http://10.0.11.150:8000/health"
 
-# How many tracks to send to the MI300X concurrently.
-# The GPU can handle more but this avoids overwhelming the T3's outbound bandwidth.
-MAX_CONCURRENT = 5
+# Dropped to 2. The m7i-flex.large is a CPU instance. 5 concurrent FFmpeg/Librosa 
+# decodes will spike your RAM and trigger an OOM kill before the processing lock even catches them.
+MAX_CONCURRENT = 2
 
 
 def normalize_bpm(bpm: float):
@@ -31,7 +31,7 @@ async def _process_track(
     semaphore: asyncio.Semaphore,
 ) -> tuple[str, FeatureVector | None]:
     """
-    Downloads the preview and sends it to the MI300X worker concurrently.
+    Downloads the preview and sends it to the m7i CPU worker concurrently.
     The semaphore caps how many tracks are in-flight at once.
     Returns a (track_id, FeatureVector | None) tuple.
     """
@@ -57,11 +57,11 @@ async def _process_track(
                 )
                 return track_id, None
 
-            # ── 2. Send to MI300X worker for heavy inference ───────────────────
+            # ── 2. Send to m7i worker for CPU inference ───────────────────────
             worker_response = await client.post(
                 WORKER_URL,
                 files={"file": (f"{track_id}.mp3", audio_bytes, "audio/mpeg")},
-                timeout=60.0,  # MERT inference needs breathing room
+                timeout=180.0,  # CPU MERT inference is slower, needs breathing room
             )
 
             if worker_response.status_code != 200:
@@ -81,11 +81,11 @@ async def _process_track(
                 "brightness": data.get("brightness", 0.5),
                 "danceability": data.get("danceability", 0.5),
                 "energy": data.get("energy", 0.5),
-                "mood_tags": ["pending_full_analysis"],
+                "mood_tags": data.get("mood_tags", ["unknown"]), # Pulls actual tags from worker
             }
 
             logger.info(
-                f"Successfully enriched {track_id} via MI300X worker "
+                f"Successfully enriched {track_id} via m7i worker "
                 f"| BPM: {feature_vec['bpm']} "
                 f"| Tags: {feature_vec['mood_tags']}"
             )
@@ -100,12 +100,10 @@ async def _run_parallel_analysis(
     tracks_with_urls: dict[str, str],
 ) -> dict[str, FeatureVector]:
     """
-    Fires all track analysis tasks concurrently against the MI300X worker.
-    Wall time = slowest single track, not the sum of all tracks.
+    Fires all track analysis tasks concurrently against the m7i CPU worker.
     """
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
 
-    # Single shared client for all requests — efficient connection pooling
     async with httpx.AsyncClient() as client:
         tasks = [
             _process_track(client, track_id, preview_url, semaphore)
@@ -123,8 +121,7 @@ async def _run_parallel_analysis(
 async def analyzer_node(state: EchoSeedState):
     """
     Analyzes all tracks in parallel by concurrently downloading previews and
-    sending them to the MI300X worker. The GPU processes multiple batches
-    simultaneously instead of sitting idle between sequential requests.
+    sending them to the m7i worker.
     """
     logger.info("Starting parallel audio analysis for %d tracks", len(state["tracks"]))
 
@@ -143,7 +140,6 @@ async def analyzer_node(state: EchoSeedState):
 
     preview_urls = state.get("preview_urls", {})
 
-    # Separate tracks that have a preview URL from those that don't
     tracks_with_urls = {
         track_id: preview_urls[track_id]
         for track_id in state["tracks"]
@@ -159,11 +155,10 @@ async def analyzer_node(state: EchoSeedState):
         return {"features": {}}
 
     logger.info(
-        f"Firing {len(tracks_with_urls)} tracks at the MI300X concurrently "
+        f"Firing {len(tracks_with_urls)} tracks at the m7i concurrently "
         f"(max {MAX_CONCURRENT} in-flight at once)."
     )
 
-    # Await the coroutine directly using the existing event loop
     features_dict = await _run_parallel_analysis(tracks_with_urls)
 
     logger.info(
