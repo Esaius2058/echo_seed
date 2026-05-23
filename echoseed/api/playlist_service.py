@@ -1,6 +1,6 @@
 import logging
 import time
-import random
+import argparse
 import numpy as np
 from typing import List
 from spotipy import Spotify
@@ -160,8 +160,17 @@ class SpotifyPlaylistService:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="EchoSeed Playlist Randomizer")
+    parser.add_argument(
+        "playlist", 
+        type=str, 
+        help="The exact name of the Spotify playlist to randomize."
+    )
+    args = parser.parse_args()
+
     auth_service = SpotifyAuthService()
     auth_service.authenticate()
     sp_client = auth_service.get_spotify_client()
+    
     playlist_service = SpotifyPlaylistService(sp_client)
-    playlist_service.randomize_playlist("rock")
+    playlist_service.randomize_playlist(args.playlist)
