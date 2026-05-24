@@ -189,7 +189,7 @@ if __name__ == "__main__":
         "length",
         type=int,
         help="The number of tracks in the playlist."
-    )
+    )       
     args = parser.parse_args()
 
     auth = SpotifyAuthService()
