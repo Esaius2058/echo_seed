@@ -28,3 +28,4 @@ class EchoSeedState(TypedDict):
     preview_urls: Dict[str, str]
     features: Dict[str, FeatureVector]
     sorted_results: NotRequired[List[Dict[str, Any]]]  # NEW: Stores the output of the scorer node
+    ordered_tracks: list[str]
