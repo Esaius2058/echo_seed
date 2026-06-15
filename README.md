@@ -105,16 +105,6 @@ python main.py
 
 ---
 
-## 🧠 The Math Behind the Vibe
-
-EchoSeed finds similarities by calculating **Cosine Similarity** between track embeddings in a 768-dimensional space:
-
-$$\text{similarity} = \frac{A \cdot B}{\|A\| \|B\|}$$
-
-Where `A` is your seed track and `B` is a candidate from your library. This allows EchoSeed to find tracks that *sound* alike, even across completely different genres.
-
----
-
 ## 📂 Project Structure
 ### Main Branch (The Orchestrator)
 **Target:** aws t3 instance
