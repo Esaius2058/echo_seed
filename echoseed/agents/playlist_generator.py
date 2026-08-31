@@ -53,7 +53,7 @@ class PlaylistGenerator:
     def get_playlist_name(self) -> str:
         logger.info("[PlaylistGenerator] Generating playlist name for mood: %s", self.mood)
         response = self.ai_client.chat.completions.create(
-            model="gemini-2.5-flashypeh",
+            model="gemini-2.5-flash",
             messages=[
                 {"role": "system",
                  "content": "You are an expert music curator. Your job is to create catchy, short playlist names that "
