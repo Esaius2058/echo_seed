@@ -108,3 +108,4 @@ utils==1.0.2
 uvicorn==0.52.4
 webcolors==25.10.0
 websockets==14.2
+yt-dlp==2026.8.19
