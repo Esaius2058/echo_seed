@@ -1,70 +1,88 @@
 import os
-import io
-import gc
-import torch
-import librosa
+import asyncio
 import logging
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from transformers import AutoModel, Wav2Vec2FeatureExtractor
 from dotenv import load_dotenv
-
-# Optimization: Limit threads to save memory on the m7i
-torch.set_num_threads(1)
+from echoseed.api.auth import SpotifyAuthService
+from echoseed.security.token_manager import TokenManager
+from echoseed.api.playlist_service import SpotifyPlaylistService
+from echoseed.graph.base_graph import build_graph
 
 load_dotenv()
+logger = logging.getLogger("EchoSeed")
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("echoseed.worker")
 
-app = FastAPI(title="EchoSeed AI Worker")
 
-# Absolute paths for standalone models
-MODELS_BASE = os.path.expanduser("~/models")
-MERT_PATH = os.path.join(MODELS_BASE, "mert")
-
-logger.info("[EchoSeed] Loading AI Models...")
-try:
-    mert_model = AutoModel.from_pretrained(
-        "m-a-p/MERT-v1-95M", 
-        cache_dir=MERT_PATH, 
-        trust_remote_code=True,
-        return_dict=True
-    )
-    mert_ext = Wav2Vec2FeatureExtractor.from_pretrained("m-a-p/MERT-v1-95M", cache_dir=MERT_PATH)
-    logger.info("[EchoSeed] Models Loaded Successfully")
-except Exception as e:
-    logger.error(f"Model Loading Failed: {e}")
-
-@app.post("/analyze")
-async def analyze(file: UploadFile = File(...)):
+async def run_test_pipeline():
     try:
-        # 1. Read bytes and immediately load into librosa
-        audio_bytes = await file.read()
-        y, sr = librosa.load(io.BytesIO(audio_bytes), sr=24000)
-        del audio_bytes 
-        
-        # 2. Tempo Logic
-        tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-        bpm = float(tempo[0]) if hasattr(tempo, "__len__") else float(tempo)
-        
-        # 3. MERT Inference
-        with torch.no_grad():
-            inputs = mert_ext(y, sampling_rate=sr, return_tensors="pt")
-            outputs = mert_model(**inputs)
-            embedding = outputs.last_hidden_state.mean(dim=1).squeeze().tolist()
-        
-        # 4. Explicit Cleanup
-        del y, inputs, outputs
-        gc.collect() 
-        
-        return {
-            "status": "success",
-            "bpm": round(bpm, 2),
-            "embedding": embedding
+        # 1. Auth Setup
+        secret_key = os.getenv("SECRET_KEY", "default_secret_for_dev").encode()
+        auth_service = SpotifyAuthService()
+        auth_service.authenticate()
+
+        spotify_client = auth_service.get_spotify_client()
+        playlist_service = SpotifyPlaylistService(spotify_client)
+
+        # 2. Target Selection
+        playlist_name = input("Enter playlist name for the 5-track test: ")
+        playlist_id = playlist_service.get_playlist_id(playlist_name)
+        all_tracks = playlist_service.get_playlist_tracks(playlist_id)
+
+        test_tracks = all_tracks[:5]
+        logger.info(f"Testing pipeline with: {[t.name for t in test_tracks]}")
+
+        # 3. Initial State
+        initial_state = {
+            "playlist_id": playlist_id,
+            "tracks": [t.id for t in test_tracks],
+            "track_metadata": {
+                t.id: {"name": t.name, "artist": t.artist} for t in test_tracks
+            },
+            "preview_urls": {},
+            "features": {},
         }
+
+        # 4. Graph Execution
+        graph = build_graph()
+        logger.info("Invoking LangGraph (Async)...")
+        result = await graph.ainvoke(initial_state)
+
+        # 5. Validation (Phase 3: Scorer Results)
+        sorted_results = result.get("sorted_results", [])
+
+        if not sorted_results:
+            logger.error(
+                "No sorted results returned. Something went wrong in the scorer."
+            )
+            return
+
+        logger.info(f"Test Complete. Scored {len(sorted_results)} candidates.")
+
+        # Get the seed track info from the state features
+        features = result.get("features", {})
+        if not features:
+            logger.error("No features returned to identify the seed track.")
+            return
+
+        seed_id = list(features.keys())[0]
+        seed_name = result["track_metadata"][seed_id]["name"]
+
+        print(f"\n--- SEED TRACK: {seed_name} ---")
+
+        for rank, match in enumerate(sorted_results, 1):
+            tid = match["track_id"]
+            name = result["track_metadata"][tid]["name"]
+            score = match["score"]
+            breakdown = match["breakdown"]
+
+            print(f"\n#{rank}: {name} (Total Score: {score})")
+            print(
+                f"  └─ Timbre: {breakdown['embedding']} | Harmonic: {breakdown['harmonic']} | Energy: {breakdown['energy']} | Mood: {breakdown['mood']}"
+            )
+
     except Exception as e:
-        logger.error(f"Analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Test failed: {e}")
+
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    asyncio.run(run_test_pipeline())
+
