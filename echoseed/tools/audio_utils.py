@@ -1,45 +1,63 @@
-import httpx
+import os
+import io
+import tempfile
+import logging
 import librosa
 import soundfile as sf
-import tempfile
-import io
-import os
-import logging
+import yt_dlp
 
 logger = logging.getLogger("audio_utils")
 
+<<<<<<< HEAD
 
 # The Pre-processor - fetches the raw bytes from Spotify’s CDN.
 def download_and_resample(preview_url: str, target_str: int = 16000) -> bytes:
     """Downloads an MP3 preview, saves it to disk temporarily, resamples it, and returns WAV bytes."""
+=======
+def fetch_true_segments(search_query: str, target_sr: int = 24000, segment_len: int = 15) -> tuple[bytes, bytes]:
+    """
+    Fetches full audio via yt-dlp, extracts the intro and outro as WAV bytes, and cleans up the source file.
+    """
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'outtmpl': os.path.join(tempfile.gettempdir(), '%(id)s.%(ext)s'),
+        'quiet': True,
+        'no_warnings': True,
+    }
+>>>>>>> 6317959 (fix)
 
-    # 1. Download the raw data
-    # follow_redirects is crucial because audio CDNs often redirect URLs
-    with httpx.Client(follow_redirects=True) as client:
-        response = client.get(preview_url)
-        response.raise_for_status()
-
-    # 2. Write to a temporary file on disk so librosa's MP3 decoder can read it
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
-        tmp_file.write(response.content)
-        tmp_path = tmp_file.name
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(search_query, download=True)
+        if 'entries' in info:
+            info = info['entries'][0]
+        temp_file_path = ydl.prepare_filename(info)
 
     try:
-        # 3. Load from disk and resample
-        # This is where librosa calls ffmpeg behind the scenes
-        y, sr = librosa.load(tmp_path, sr=target_str)
+        total_duration = librosa.get_duration(path=temp_file_path)
+        
+        intro_y, sr = librosa.load(temp_file_path, sr=target_sr, offset=0.0, duration=segment_len)
+        
+        outro_offset = max(0.0, total_duration - segment_len)
+        outro_y, _ = librosa.load(temp_file_path, sr=target_sr, offset=outro_offset, duration=segment_len)
 
+<<<<<<< HEAD
         # 4. Convert to a clean WAV byte-stream for HuggingFace
         wav_io = io.BytesIO()
         sf.write(wav_io, y, sr, format="WAV", subtype="PCM_16")
+=======
+        intro_io = io.BytesIO()
+        sf.write(intro_io, intro_y, sr, format='WAV', subtype='PCM_16')
+        
+        outro_io = io.BytesIO()
+        sf.write(outro_io, outro_y, sr, format='WAV', subtype='PCM_16')
+>>>>>>> 6317959 (fix)
 
-        return wav_io.getvalue()
+        return intro_io.getvalue(), outro_io.getvalue()
 
     except Exception as e:
-        logger.error(f"Failed to process audio data: {e}")
+        logger.error(f"Failed to process segments for {search_query}: {e}")
         raise
 
     finally:
-        # 5. Always clean up the temp file, even if it crashes
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        if os.path.exists(temp_file_path):
+            os.remove(temp_file_path)

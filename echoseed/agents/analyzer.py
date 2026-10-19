@@ -1,4 +1,5 @@
 import asyncio
+<<<<<<< HEAD
 import httpx
 import logging
 from echoseed.state.schema import EchoSeedState, FeatureVector
@@ -167,3 +168,95 @@ async def analyzer_node(state: EchoSeedState):
     )
 
     return {"features": features_dict}
+=======
+import logging
+from echoseed.state.schema import EchoSeedState, FeatureVector
+from echoseed.tools.audio_utils import fetch_true_segments
+from echoseed.tools.librosa_tools import extract_local_features
+from echoseed.tools.hf_client import HFClient
+
+logger = logging.getLogger("audio_analyzer")
+
+MAX_CONCURRENT = 3  # yt-dlp downloads are heavier than Deezer fetches
+
+async def _process_track(
+    track_id: str,
+    meta: dict | None,
+    hf: HFClient,
+    semaphore: asyncio.Semaphore,
+) -> tuple[str, FeatureVector | None]:
+    async with semaphore:
+        try:
+            query = (
+                f"ytsearch1:{meta.get('artist', '')} {meta.get('title', '')} audio"
+                if meta
+                else f"ytsearch1:{track_id} audio"
+            )
+            logger.info(f"Fetching segments for: {query}")
+
+            # yt-dlp is blocking — run on a thread
+            intro_bytes, outro_bytes = await asyncio.to_thread(
+                fetch_true_segments, query, 24000, 15
+            )
+
+            # DSP features
+            intro_feats = extract_local_features(intro_bytes)
+            outro_feats = extract_local_features(outro_bytes)
+
+            # MERT embeddings — these go to the worker
+            intro_embed = await asyncio.to_thread(hf.get_mert_embedding, intro_bytes)
+            outro_embed = await asyncio.to_thread(hf.get_mert_embedding, outro_bytes)
+
+            feature_vec: FeatureVector = {
+                "track_id":           track_id,
+                "key":                intro_feats.get("key", "Unknown"),
+                "valence":            5.0,   # populated by music2emo on worker
+                "arousal":            5.0,
+                "mood_tags":          ["pending"],
+                "intro_bpm":          intro_feats.get("bpm", 0.0),
+                "intro_energy":       intro_feats.get("energy", 0.0),
+                "intro_brightness":   intro_feats.get("brightness", 0.0),
+                "intro_danceability": intro_feats.get("danceability", 0.0),
+                "intro_embed":        intro_embed,
+                "outro_bpm":          outro_feats.get("bpm", 0.0),
+                "outro_energy":       outro_feats.get("energy", 0.0),
+                "outro_brightness":   outro_feats.get("brightness", 0.0),
+                "outro_danceability": outro_feats.get("danceability", 0.0),
+                "outro_embed":        outro_embed,
+            }
+
+            logger.info(f"Segmental vectors generated for {track_id}")
+            return track_id, feature_vec
+
+        except Exception as e:
+            logger.error(f"Failed to process {track_id}: {e}")
+            return track_id, None
+
+
+async def analyzer_node(state: EchoSeedState) -> dict:
+    logger.info("Starting segmental audio analysis for %d tracks", len(state["tracks"]))
+
+    hf = HFClient()
+    track_metadata = state.get("track_metadata", {})
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT)
+
+    tasks = [
+        _process_track(track_id, track_metadata.get(track_id), hf, semaphore)
+        for track_id in state["tracks"]
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    features_dict = {
+        track_id: fv
+        for track_id, fv in results
+        if fv is not None
+    }
+
+    logger.info(
+        f"Segmental analysis complete. "
+        f"Enriched {len(features_dict)}/{len(state['tracks'])} tracks."
+    )
+
+    return {"features": features_dict}
+>>>>>>> 6317959 (fix)
